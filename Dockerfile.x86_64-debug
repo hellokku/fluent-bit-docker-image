@@ -3,8 +3,8 @@ FROM debian:buster-slim as builder
 # Fluent Bit version
 ENV FLB_MAJOR 1
 ENV FLB_MINOR 7
-ENV FLB_PATCH 1
-ENV FLB_VERSION 1.7.1
+ENV FLB_PATCH 2
+ENV FLB_VERSION 1.7.2
 
 ARG FLB_TARBALL=https://github.com/fluent/fluent-bit/archive/v$FLB_VERSION.tar.gz
 ENV FLB_SOURCE $FLB_TARBALL
@@ -29,6 +29,7 @@ RUN apt-get update && \
     postgresql-server-dev-all \
     flex \
     bison \
+    vim \
     && curl -L -o "/tmp/fluent-bit.tar.gz" ${FLB_SOURCE} \
     && cd tmp/ && mkdir fluent-bit \
     && tar zxfv fluent-bit.tar.gz -C ./fluent-bit --strip-components=1 \
@@ -67,7 +68,9 @@ COPY --from=amd64/busybox:1.31.1 /bin/busybox /bin/busybox
 RUN chmod 555 /bin/busybox && \
     /bin/busybox --install -s /usr/local/bin
 
-FROM gcr.io/distroless/cc-debian10
+# for vim
+#FROM gcr.io/distroless/cc-debian10:debug
+FROM debian:buster-slim
 MAINTAINER Eduardo Silva <eduardo@treasure-data.com>
 LABEL Description="Fluent Bit docker image" Vendor="Fluent Organization" Version="1.1"
 
@@ -111,6 +114,19 @@ COPY --from=builder /fluent-bit /fluent-bit
 
 COPY --from=builder /usr/local/bin/ /usr/local/bin/
 COPY --from=builder /bin/busybox /bin/
+
+# vim
+COPY --from=builder /usr/bin/vim /usr/bin/vim
+COPY --from=builder /lib/x86_64-linux-gnu/libm* /lib/x86_64-linux-gnu/
+COPY --from=builder /lib/x86_64-linux-gnu/libtinfo* /lib/x86_64-linux-gnu/
+COPY --from=builder /lib/x86_64-linux-gnu/libselinux* /lib/x86_64-linux-gnu/
+COPY --from=builder /usr/lib/x86_64-linux-gnu/libacl* /usr/lib/x86_64-linux-gnu/
+COPY --from=builder /usr/lib/x86_64-linux-gnu/libgpm* /usr/lib/x86_64-linux-gnu/
+COPY --from=builder /lib/x86_64-linux-gnu/libdl* /lib/x86_64-linux-gnu/
+COPY --from=builder /lib/x86_64-linux-gnu/libc* /lib/x86_64-linux-gnu/
+COPY --from=builder /lib/x86_64-linux-gnu/libpcre* /lib/x86_64-linux-gnu/
+COPY --from=builder /usr/lib/x86_64-linux-gnu/libattr* /usr/lib/x86_64-linux-gnu/
+COPY --from=builder /lib/x86_64-linux-gnu/libpthread* /lib/x86_64-linux-gnu/
 
 # Entry point
 CMD ["/fluent-bit/bin/fluent-bit", "-c", "/fluent-bit/etc/fluent-bit.conf"]
